@@ -5,13 +5,10 @@
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendPluginRegistry.h"
-
 #include "llvm/Support/raw_ostream.h"
 #include "clang/Sema/Sema.h"
 #include "clang/AST/RecursiveASTVisitor.h"
-
 #include "clang/Basic/Diagnostic.h"
-
 #include "clang/AST/DeclObjC.h"
 
 using namespace clang;
@@ -19,13 +16,12 @@ using namespace std;
 using namespace llvm;
 using namespace clang::ast_matchers;
 
-
 namespace CodeStandardsPlugin {
     
-    // MARK: - my handler
+    // 自定义 handler
     class CodeStandardsHandler : public MatchFinder::MatchCallback {
     private:
-        CompilerInstance &ci;
+        CompilerInstance &ci;//编译器实例
     public:
         CodeStandardsHandler(CompilerInstance &ci) :ci(ci) {}
         
@@ -167,6 +163,9 @@ namespace CodeStandardsPlugin {
         
         
         template <unsigned N>
+        /// 抛出警告
+        /// @param Loc 位置
+        /// @param Hint 修改提示
         void diagWaringReport(SourceLocation Loc, const char (&FormatString)[N], FixItHint *Hint)
         {
             DiagnosticsEngine &diagEngine = ci.getDiagnostics();
@@ -174,6 +173,7 @@ namespace CodeStandardsPlugin {
             (Hint!=NULL) ? diagEngine.Report(Loc, DiagID) << *Hint : diagEngine.Report(Loc, DiagID);
         }
         
+        //主要方法，分配 类、方法、属性 做不同处理
         void run(const MatchFinder::MatchResult &Result) {
 
             if (const ObjCInterfaceDecl *interfaceDecl = Result.Nodes.getNodeAs<ObjCInterfaceDecl>("ObjCInterfaceDecl")) {
@@ -212,8 +212,7 @@ namespace CodeStandardsPlugin {
         
         /**
           判断是否为用户源码
-
-          @param decl 声明
+          @param string 路径
           @return true 为用户源码，false 非用户源码
          */
         bool isUserSourceCode (string filename)
@@ -230,6 +229,7 @@ namespace CodeStandardsPlugin {
         
     };
     
+    //自定义的处理工具
     class CodeStandardsASTConsumer: public ASTConsumer {
     private:
         MatchFinder matcher;
@@ -248,11 +248,12 @@ namespace CodeStandardsPlugin {
         }
     };
     
+    // 入口
     class CodeStandardsASTAction: public PluginASTAction {
         std::set<std::string> ParsedTemplates;
     public:
         unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &ci, StringRef iFile) {
-            return unique_ptr<CodeStandardsASTConsumer> (new CodeStandardsASTConsumer(ci));
+            return unique_ptr<CodeStandardsASTConsumer> (new CodeStandardsASTConsumer(ci));//使用自定义的处理工具
         }
         
         bool ParseArgs(const CompilerInstance &ci, const std::vector<std::string> &args) {
@@ -261,9 +262,6 @@ namespace CodeStandardsPlugin {
     };
 }
 
-
-
+//添加插件
 static FrontendPluginRegistry::Add<CodeStandardsPlugin::CodeStandardsASTAction>
 X("CodeStandardsPlugin", "CodeStandardsPlugin 代码规范检查");
-
-
